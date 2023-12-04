@@ -1,5 +1,4 @@
 from pprint import pprint
-import numpy as np
 from collections import defaultdict
 
 
@@ -16,7 +15,12 @@ def print_mat(mat):
         print(frmt.format(*row))
 
 
-def parse_num_and_space(input):
+def print_mapping(num_map, res):
+    for i, n in enumerate(num_map):
+        print(f"{i} -> {n}: {res[str(i)]}")
+
+
+def parse_num_and_space(input, num_id):
     output = []
 
     num_str = ""
@@ -24,10 +28,11 @@ def parse_num_and_space(input):
         if not n.isdigit():
             if num_str:
                 # append number for x
+                num_id.append(num_str)
 
                 while "x" in output:
                     x_ind = output.index("x")
-                    output[x_ind] = num_str
+                    output[x_ind] = str(len(num_id) - 1)
 
                 num_str = ""
 
@@ -37,7 +42,7 @@ def parse_num_and_space(input):
             output.append("x")  # mark spot where I should place numbers
             num_str += n
 
-    return output
+    return output, num_id
 
 
 def is_symbol(char):
@@ -84,8 +89,11 @@ def has_adjacent_symbol(num_ind, matrix):
 
 
 def solve_part1(file_input):
+    num_ids = []
+
     inputs = get_input(file_input)
-    parsed_inputs = [parse_num_and_space(input) for input in inputs]
+    parsed_inputs = [parse_num_and_space(input, num_ids) for input in inputs]
+    parsed_inputs = [parsed_input[0] for parsed_input in parsed_inputs]
 
     # get number bounds
     num_bounds = defaultdict(list)
@@ -103,15 +111,19 @@ def solve_part1(file_input):
                 res[num] = True
 
     final_sum = 0
-    for num in res:
-        if res[num]:
-            final_sum += int(num)
+    for id in res:
+        if res[id]:
+            final_sum += int(num_ids[int(id)])
 
-    pprint(num_bounds)
-    pprint(res)
+    # print_mapping(num_ids, res)
     print(final_sum)
     return final_sum
 
 
 if __name__ == "__main__":
-    solve_part1("./input.txt")
+    import sys
+
+    solve_part1(sys.argv[1])
+
+    # Prev wrong answers: 325045, 518247
+    # final answer:
