@@ -42,6 +42,16 @@ def parse_num_and_space(input, num_id):
             output.append("x")  # mark spot where I should place numbers
             num_str += n
 
+    if num_str:
+        # append number for x
+        num_id.append(num_str)
+
+        while "x" in output:
+            x_ind = output.index("x")
+            output[x_ind] = str(len(num_id) - 1)
+
+        num_str = ""
+
     return output, num_id
 
 
@@ -115,6 +125,7 @@ def solve_part1(file_input):
         if res[id]:
             final_sum += int(num_ids[int(id)])
 
+    # print_mat(parsed_inputs)
     # print_mapping(num_ids, res)
     print(final_sum)
     return final_sum
