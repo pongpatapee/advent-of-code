@@ -1,3 +1,6 @@
+import math
+
+
 def get_inputs(file):
     with open(file) as f:
         inputs = f.read().splitlines()
@@ -35,6 +38,31 @@ def num_way_beat_race(time, distance):
     return times_beaten
 
 
+def num_way_beat_race_math(time, distance):
+    # time means available time
+
+    # upside down qudratic
+    # want time range for distrances > recorded distance
+    # t(available_time(x) - t) > distance(d)
+    # -t^2 + xt > d
+    # -t^2 + xt -d > 0
+    # t^2 -xt + d < 0
+
+    a = 1
+    b = time
+    c = distance
+
+    root = math.sqrt((b**2) - 4 * a * c)
+
+    t1 = (-b - root) / (2 * a)
+    t2 = (-b + root) / (2 * a)
+
+    t1 = int(t1)
+    t2 = int(t2)
+
+    return t2 - t1
+
+
 def solve_part1(file):
     inputs = get_inputs(file)
     times, distances = parse_inputs(inputs)
@@ -66,8 +94,8 @@ def solve_part2(file):
     inputs = get_inputs(file)
     time, distance = parse_inputs_part2(inputs)
 
-    times_beaten = num_way_beat_race(time, distance)
-
+    # times_beaten = num_way_beat_race(time, distance)
+    times_beaten = num_way_beat_race_math(time, distance)
     print(times_beaten)
 
 
