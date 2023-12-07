@@ -103,37 +103,6 @@ def solve_part1(file):
     print(min(locations))
 
 
-def calc_overlap(src_start, src_length, dst_start, dst_length):
-    a = src_start
-    b = src_start + src_length - 1
-    c = dst_start
-    d = dst_start + dst_length - 1
-
-    print(a, b, c, d)
-
-    # a--------b
-    #   c---d
-    if a <= c and d <= b:
-        return (d - c) + 1
-
-    # a---b
-    #   c---d
-    elif a <= c and b <= d and c <= b:
-        return (b - c) + 1
-
-    #   a---b
-    # c---d
-    elif c <= a and d <= b and a <= d:
-        return (d - a) + 1
-
-    #   a---b
-    # c--------d
-    elif c <= a and b <= d:
-        return (b - a) + 1
-
-    return 0
-
-
 def get_overlap_range(src_start, src_length, dst_start, dst_length):
     a = src_start
     b = src_start + src_length - 1
@@ -143,58 +112,131 @@ def get_overlap_range(src_start, src_length, dst_start, dst_length):
     # a--------b
     #   c---d
     if a <= c and d <= b:
+        # return [
+        #     (c, d),
+        #     (a, c),
+        #     (d, b),
+        # ]  # (c, d) = range in transformation, (a, c), (d, b) = range out of transformation
         return (c, d)
 
     # a---b
     #   c---d
-    elif a <= c and b <= d and b <= d:
+    elif a <= c and c <= b and b <= d:
+        # return [(c, b), (a, c)]  # same logic as above
         return (c, b)
 
     #   a---b
     # c---d
-    elif c <= a and d <= b and a <= d:
+    elif c <= a and a <= d and d <= b:
+        # return [(a, d), (d, b)]
         return (a, d)
 
     #   a---b
     # c--------d
     elif c <= a and b <= d:
+        # return [(a, b)]
         return (a, b)
 
+    # return [None, (a, b)]
     return None
 
 
-def get_lowest_ranges(input_range, mappings):
-    if input_range is None:
-        min_dst = float("inf")
-        min_dst_ind = None
-        for i, m in enumerate(mappings):
-            dst_start = m[0]
-            min_dst = min(min_dst, dst_start)
-            min_dst_ind = i
+def get_non_overlap_ranges(curr_range, new_ranges):
+    curr_start, curr_length = curr_range
 
-        dst, src, length = mappings[min_dst_ind]
+    total_non_overlap = None
 
-        return src, length
+    for new_range in new_ranges:
+        new_start, new_length = new_range
 
-    closest_range = None
-    src_start, length = input_range
-    max_over_lap = float("-inf")
-    min_diff = float("inf")
-    for m in mappings:
-        m_dst, m_src, m_length = m
+        overlap = get_overlap_range(curr_start, curr_length, new_start, new_length)
 
-        overlap = calc_overlap(src_start, length, m_dst, m_length)
-        if overlap == 0 and max_over_lap == float("-inf"):
-            diff = abs(src_start - (m_dst + m_length - 1))
-            if diff < min_diff:
-                min_diff = diff
-                closest_range = m_src, m_length
+        if overlap:
+            overlap_start, overlap_end = overlap
+            overlap_length = overlap_end - overlap_start + 1
 
-        elif overlap > max_over_lap:
-            max_over_lap = overlap
-            closest_range = m_src, m_length
+            if overlap_length == 0:
+                continue
 
-    return closest_range
+            if overlap_start == curr_start:
+                non_overlap_start = overlap_end + 1
+                non_overlap_length = curr_length - overlap_length
+                non_overlap_end = non_overlap_start + non_overlap_length - 1
+
+            else:
+                non_overlap_start = curr_start
+                non_overlap_length = curr_length - overlap_length
+                non_overlap_end = non_overlap_start + non_overlap_length - 1
+
+            if total_non_overlap and non_overlap_length > 0:
+                temp = get_overlap_range(
+                    total_non_overlap[0],
+                    total_non_overlap[1],
+                    non_overlap_start,
+                    non_overlap_length,
+                )
+
+                if temp:
+                    start, end = temp
+                    total_non_overlap = (start, start + end - 1)
+
+            else:
+                total_non_overlap = (non_overlap_start, non_overlap_length)
+
+    return total_non_overlap
+
+
+def apply_transformation(new_ranges, transformations):
+    transformed_ranges = []
+    for i in range(len(new_ranges)):
+        transformed_ranges.append(
+            (new_ranges[i][0] + transformations[i], new_ranges[i][1])
+        )
+
+    return transformed_ranges
+
+
+def get_transformed_ranges(curr_ranges, mappings):
+    num_ranges = len(curr_ranges)
+    transformed_ranges = []
+
+    for i in range(num_ranges):
+        curr_range = curr_ranges.pop(0)
+        new_ranges = []
+        transformations = []
+        for map_range in mappings:
+            m_dst_start, m_src_start, m_length = map_range
+            curr_start, curr_length = curr_range
+            overlap = get_overlap_range(curr_start, curr_length, m_src_start, m_length)
+
+            # print(
+            #     f"curr range: {curr_range}, curr_map: {map_range}, overlap: {overlap}"
+            # )
+
+            if overlap is not None:
+                lower_bound, upper_bound = overlap
+                length = upper_bound - lower_bound + 1
+
+                # Transform
+                transformations.append(m_dst_start - m_src_start)
+                new_ranges.append((lower_bound, length))
+
+        if len(new_ranges) == 0:  # no overlap in any mapping found
+            new_ranges = [curr_range]  # then put back current range
+            transformations = [0]
+
+        non_overlap_range = get_non_overlap_ranges(curr_range, new_ranges)
+        print(
+            f"curr range: {curr_range}, new_ranges: {new_ranges}, non-overlap: {non_overlap_range}"
+        )
+        new_ranges = apply_transformation(new_ranges, transformations)
+
+        transformed_ranges.extend(new_ranges)
+        if non_overlap_range is not None and non_overlap_range[1] > 0:
+            transformed_ranges.append(non_overlap_range)
+
+    print(transformed_ranges)
+    return transformed_ranges
 
 
 def solve_part2(file):
@@ -205,61 +247,36 @@ def solve_part2(file):
     seed_ranges = []
     for i in range(0, len(seeds), 2):
         starting_seed, num_seeds = seeds[i], seeds[i + 1]
-        seed_ranges.append([starting_seed, num_seeds])
+        seed_ranges.append((starting_seed, num_seeds))
 
-    # Going backwards None -> location -> humidity -> temperature -> light -> water -> fertilizer -> soil -> seed
-    lowest_humidity_range = get_lowest_ranges(None, items["humidity-to-location"])
-    lowest_temperature_range = get_lowest_ranges(
-        lowest_humidity_range, items["temperature-to-humidity"]
+    # print(seed_ranges)
+    print("current mapping: seed->soil")
+    soil_ranges = get_transformed_ranges(seed_ranges, items["seed-to-soil"])
+    print("current mapping: soil->fert")
+    fertilizer_ranges = get_transformed_ranges(soil_ranges, items["soil-to-fertilizer"])
+    print("current mapping: fert->water")
+    water_ranges = get_transformed_ranges(
+        fertilizer_ranges, items["fertilizer-to-water"]
     )
-    lowest_light_range = get_lowest_ranges(
-        lowest_temperature_range, items["light-to-temperature"]
+    print("current mapping: water->light")
+    light_ranges = get_transformed_ranges(water_ranges, items["water-to-light"])
+    print("current mapping: light->temp")
+    temperature_ranges = get_transformed_ranges(
+        light_ranges, items["light-to-temperature"]
     )
-    lowest_water_range = get_lowest_ranges(lowest_light_range, items["water-to-light"])
-    lowest_fertilizer_range = get_lowest_ranges(
-        lowest_water_range, items["fertilizer-to-water"]
+    print("current mapping: temp->humidity")
+    humidity_ranges = get_transformed_ranges(
+        temperature_ranges, items["temperature-to-humidity"]
     )
-    lowest_soil_range = get_lowest_ranges(
-        lowest_fertilizer_range, items["soil-to-fertilizer"]
+    print("current mapping: humidity->loc")
+    location_ranges = get_transformed_ranges(
+        humidity_ranges, items["humidity-to-location"]
     )
-    lowest_seed_range = get_lowest_ranges(lowest_soil_range, items["seed-to-soil"])
 
-    print(lowest_humidity_range)
-    print(lowest_temperature_range)
-    print(lowest_light_range)
-    print(lowest_water_range)
-    print(lowest_fertilizer_range)
-    print(lowest_soil_range)
-    print(lowest_seed_range)
+    print(location_ranges)
 
-    max_over_lap = 0
-    overlap_range = None
-    for seed_range in seed_ranges:
-        overlap = calc_overlap(*lowest_seed_range, *seed_range)
-        print(overlap)
-        if overlap > max_over_lap:
-            max_over_lap = overlap
-            overlap_range = get_overlap_range(*lowest_seed_range, *seed_range)
-
-    # if overlap_range is None:
-    #     return
-    #
-    print(overlap_range)
-    lower_bound, upper_bound = overlap_range
-
-    min_location = float("inf")
-    for seed in range(lower_bound, upper_bound + 1):
-        location = get_location(seed, items)
-        # print(seed, location)
-        min_location = min(location, min_location)
-
-    ## test
-    # location = get_location(70, items)
-    # print(location)
-    ## test
-
-    # print(min_location)
-    # return min_location
+    min_loc = min(location_ranges, key=lambda x: x[0])
+    print(min_loc)
 
 
 if __name__ == "__main__":
