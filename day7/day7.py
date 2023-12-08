@@ -93,10 +93,6 @@ def get_hand_type(hand):
     return "highcard"
 
 
-def hand_val(hand1):
-    pass
-
-
 def compare_hands(hand1, hand2):
     hand1_type = get_hand_type(hand1)
     hand2_type = get_hand_type(hand2)
@@ -141,37 +137,35 @@ def get_hand_type_part2(hand):
 
     sorted_hand = sorted(freq.items(), key=lambda x: x[1], reverse=True)
 
-    most_freq = sorted_hand[0][1]
+    # Edge case (JJJJJ)
+    if freq["J"] == 5:
+        return "5kind"
 
-    if sorted_hand[0][0] != "J":
-        J_freq = freq["J"]  # can be used as joker
-        most_freq += J_freq
+    # Get most freq item that isn't J
+    most_freq_ind = 0
+    most_freq_hand = sorted_hand[most_freq_ind][0]
+    most_freq = sorted_hand[most_freq_ind][1]
 
-    else:
-        if len(sorted_hand) == 5:  # all elems are distinct
-            most_freq += sorted_hand[1][1]
+    if most_freq_hand == "J":
+        most_freq_ind += 1
+        most_freq_hand = sorted_hand[most_freq_ind][0]
+        most_freq = sorted_hand[most_freq_ind][1]
+
+    most_freq += freq["J"]  # add most freq card (that isn't J) with freq of J
 
     if most_freq == 5:
         return "5kind"
     elif most_freq == 4:
         return "4kind"
     elif most_freq == 3:
-        if sorted_hand[1][0] != "J":
-            second_freq = sorted_hand[1][1]
-        else:
-            second_freq = sorted_hand[2][1]
-
+        second_freq = sorted_hand[most_freq_ind + 1][1]
         if second_freq == 2:
             return "fullhouse"
 
         return "3kind"
 
     elif most_freq == 2:
-        if sorted_hand[1][0] != "J":
-            second_freq = sorted_hand[1][1]
-        else:
-            second_freq = sorted_hand[2][1]
-
+        second_freq = sorted_hand[most_freq_ind + 1][1]
         if second_freq == 2:
             return "2pair"
 
@@ -212,9 +206,9 @@ def solve_part2(file):
 
     total_winnings = 0
     for i, hand in enumerate(hands):
+        print(hand, get_hand_type_part2(hand))
         total_winnings += (i + 1) * hand_bid_map[hand]
 
-    pprint(hands)
     print(total_winnings)
 
 
@@ -230,3 +224,4 @@ if __name__ == "__main__":
     # part 2
     # ans too low: 244683849
     # also wrong: 245383453
+    # Final ans: 244848487
