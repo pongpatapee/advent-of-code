@@ -66,31 +66,58 @@ def check_all_nodes_ended(nodes):
     return True
 
 
+# Definitely did not yoink these functions
+def gcd(a, b):
+    if a == 0:
+        return b
+    return gcd(b % a, a)
+
+
+def lcm(a, b):
+    return (a // gcd(a, b)) * b
+
+
 def solve_part2(file):
     inputs = get_inputs(file)
     directions = inputs[0]
     graph = build_graph(inputs[2:])
 
     nodes = get_starting_nodes(graph)
-    num_steps = 0
-    dir_ind = 0
+    num_steps_list = []
+
+    ## This will take 10 years to run
+    # while not check_all_nodes_ended(nodes):
+    #     curr_dir = directions[dir_ind]
+    #     for i, node in enumerate(nodes):
+    #         nodes[i] = graph[node][dir_map[curr_dir]]
+    #
+    #     num_steps += 1
+    #     dir_ind = (dir_ind + 1) % len(directions)
+    #
+
+    # LCM (Least Common Multiple) solution
+    # We know that we want the the number of steps it takes for all nodes to end at a node that ends with Z
+    # We also know that the graph are disconnected cycles, where each cycle is a node that ends with A
+    # We just need to get the number of steps for each distinct cycle, and using LCM we can find the lowest number of steps where all the cycle syncs up
+
+    for node in nodes:
+        dir_ind = 0
+        num_steps = 0
+        while not node.endswith("Z"):
+            curr_dir = directions[dir_ind]
+            node = graph[node][dir_map[curr_dir]]
+            num_steps += 1
+            dir_ind = (dir_ind + 1) % len(directions)
+
+        num_steps_list.append(num_steps)
 
     print(nodes)
-    print(graph)
+    print(num_steps_list)
+    lcm_steps = 1
+    for num_steps in num_steps_list:
+        lcm_steps = lcm(lcm_steps, num_steps)
 
-    nodes = [nodes[0]]
-    while not check_all_nodes_ended(nodes):
-        curr_dir = directions[dir_ind]
-        for i, node in enumerate(nodes):
-            nodes[i] = graph[node][dir_map[curr_dir]]
-
-        num_steps += 1
-        dir_ind = (dir_ind + 1) % len(directions)
-
-        print(num_steps)
-
-    print(nodes)
-    print(num_steps)
+    print(lcm_steps)
 
 
 if __name__ == "__main__":
