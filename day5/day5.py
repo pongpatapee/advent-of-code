@@ -103,140 +103,163 @@ def solve_part1(file):
     print(min(locations))
 
 
-def get_overlap_range(src_start, src_length, dst_start, dst_length):
+def convert_start_length_to_interval(start, length):
+    return start, (start + length - 1)
+
+
+def get_overlap_range(src_start, src_end, dst_start, dst_end):
     a = src_start
-    b = src_start + src_length - 1
+    b = src_end
     c = dst_start
-    d = dst_start + dst_length - 1
+    d = dst_end
 
     # a--------b
     #   c---d
     if a <= c and d <= b:
-        # return [
-        #     (c, d),
-        #     (a, c),
-        #     (d, b),
-        # ]  # (c, d) = range in transformation, (a, c), (d, b) = range out of transformation
-        return (c, d)
+        return [
+            [c, d],
+            [a, c - 1],
+            [d + 1, b],
+        ]  # (c, d) = range in transformation, (a, c), (d, b) = range out of transformation
+        # return (c, d)
 
     # a---b
     #   c---d
     elif a <= c and c <= b and b <= d:
-        # return [(c, b), (a, c)]  # same logic as above
-        return (c, b)
+        return [[c, b], [a, c - 1]]  # same logic as above
+        # return (c, b)
 
     #   a---b
     # c---d
     elif c <= a and a <= d and d <= b:
-        # return [(a, d), (d, b)]
-        return (a, d)
+        return [[a, d], [d + 1, b]]
+        # return (a, d)
 
     #   a---b
     # c--------d
     elif c <= a and b <= d:
-        # return [(a, b)]
-        return (a, b)
+        return [[a, b]]
+        # return (a, b)
 
-    # return [None, (a, b)]
-    return None
+    return [None, [a, b]]
+    # return None
 
 
-def get_non_overlap_ranges(curr_range, new_ranges):
-    curr_start, curr_length = curr_range
+def clean_intervals(intervals):
+    intervals = [[start, end] for start, end in intervals if start <= end]
 
-    total_non_overlap = None
+    return sorted(intervals, key=lambda x: x[0])
 
-    for new_range in new_ranges:
-        new_start, new_length = new_range
 
-        overlap = get_overlap_range(curr_start, curr_length, new_start, new_length)
+def merge_intervals(intervals):
+    merge_intervals = [intervals.pop(0)]
 
-        if overlap:
-            overlap_start, overlap_end = overlap
-            overlap_length = overlap_end - overlap_start + 1
+    for start, end in intervals:
+        p_start, p_end = merge_intervals[-1]
 
-            if overlap_length == 0:
+        if p_start <= start <= p_end:
+            start = min(start, p_start)
+            end = max(end, p_end)
+            merge_intervals[-1] = [start, end]
+        else:
+            merge_intervals.append([start, end])
+
+    return merge_intervals
+
+
+def get_non_overlaps(curr_interval, overlaps):
+    if not overlaps:
+        return [curr_interval]
+
+    curr_start, curr_end = curr_interval
+
+    # create overlap set
+    overlaps_set = set([tuple(interval) for interval in overlaps])
+
+    overlaps.sort(key=lambda x: x[0])
+
+    non_overlaps = []
+
+    # start of curr_interval to beginning of overlap
+    overlap_start = overlaps[0][0]
+    if abs(curr_start - overlap_start) > 0:
+        non_overlap = [curr_start, overlap_start - 1]
+        non_overlaps.append(non_overlap)
+
+    for i in range(len(overlaps) - 1):
+        overlap_start, overlap_end = overlaps[i]
+        next_overlap_start, next_overlap_end = overlaps[i + 1]
+
+        if abs(overlap_end - next_overlap_start) > 1:
+            non_overlap = [overlap_end + 1, next_overlap_start - 1]
+
+            if tuple(non_overlaps) not in overlaps_set:
+                non_overlaps.append(non_overlap)
+
+    # end of overlap to end of interval
+    overlap_end = overlaps[-1][1]
+    if abs(overlap_end - curr_end) > 0:
+        non_overlap = [overlap_end + 1, curr_end]
+        non_overlaps.append(non_overlap)
+
+    return non_overlaps
+
+
+def apply_transformations(overlaps, transformations):
+    transformed = []
+    for overlap, transformation in zip(overlaps, transformations):
+        start, end = overlap
+        new_start, new_end = start + transformation, end + transformation
+        transformed.append([new_start, new_end])
+
+    return transformed
+
+
+def get_transformed_intervals(curr_intervals, mappings):
+    sorted_mapping = sorted(mappings, key=lambda x: x[1])
+    transformed_intervals = []
+
+    for curr_start, curr_end in curr_intervals:
+        map_start = sorted_mapping[0][1]
+        map_end = sorted_mapping[-1][1] + sorted_mapping[-1][2] - 1
+        if curr_end < map_start or curr_start > map_end:
+            transformed_intervals.append([curr_start, curr_end])
+            continue
+
+        overlaps = []
+        transformations = []
+        for m in sorted_mapping:
+            m_dst_start, m_src_start, m_length = m
+            m_src_end = m_src_start + m_length - 1
+
+            overlap_res = get_overlap_range(
+                curr_start, curr_end, m_src_start, m_src_end
+            )
+
+            overlap = overlap_res[0]
+            if not overlap:
                 continue
 
-            if overlap_start == curr_start:
-                non_overlap_start = overlap_end + 1
-                non_overlap_length = curr_length - overlap_length
-                non_overlap_end = non_overlap_start + non_overlap_length - 1
+            overlaps.append(overlap)
+            transformations.append(m_dst_start - m_src_start)
 
-            else:
-                non_overlap_start = curr_start
-                non_overlap_length = curr_length - overlap_length
-                non_overlap_end = non_overlap_start + non_overlap_length - 1
+        non_overlap = get_non_overlaps([curr_start, curr_end], overlaps)
+        # print(f"overlap {overlaps}, non_overlaps: {non_overlap}")
 
-            if total_non_overlap and non_overlap_length > 0:
-                temp = get_overlap_range(
-                    total_non_overlap[0],
-                    total_non_overlap[1],
-                    non_overlap_start,
-                    non_overlap_length,
-                )
+        transformed_intervals.extend(apply_transformations(overlaps, transformations))
+        transformed_intervals.extend(non_overlap)
+        print()
+        print(f"current overlap {overlaps}")
+        print(f"current nonoverlap {non_overlap}")
+        pprint(transformed_intervals)
+        print()
 
-                if temp:
-                    start, end = temp
-                    total_non_overlap = (start, start + end - 1)
-
-            else:
-                total_non_overlap = (non_overlap_start, non_overlap_length)
-
-    return total_non_overlap
-
-
-def apply_transformation(new_ranges, transformations):
-    transformed_ranges = []
-    for i in range(len(new_ranges)):
-        transformed_ranges.append(
-            (new_ranges[i][0] + transformations[i], new_ranges[i][1])
-        )
-
-    return transformed_ranges
-
-
-def get_transformed_ranges(curr_ranges, mappings):
-    num_ranges = len(curr_ranges)
-    transformed_ranges = []
-
-    for i in range(num_ranges):
-        curr_range = curr_ranges.pop(0)
-        new_ranges = []
-        transformations = []
-        for map_range in mappings:
-            m_dst_start, m_src_start, m_length = map_range
-            curr_start, curr_length = curr_range
-            overlap = get_overlap_range(curr_start, curr_length, m_src_start, m_length)
-
-            # print(
-            #     f"curr range: {curr_range}, curr_map: {map_range}, overlap: {overlap}"
-            # )
-
-            if overlap is not None:
-                lower_bound, upper_bound = overlap
-                length = upper_bound - lower_bound + 1
-
-                # Transform
-                transformations.append(m_dst_start - m_src_start)
-                new_ranges.append((lower_bound, length))
-
-        if len(new_ranges) == 0:  # no overlap in any mapping found
-            new_ranges = [curr_range]  # then put back current range
-            transformations = [0]
-
-        non_overlap_range = get_non_overlap_ranges(curr_range, new_ranges)
-        print(
-            f"curr range: {curr_range}, new_ranges: {new_ranges}, non-overlap: {non_overlap_range}"
-        )
-        new_ranges = apply_transformation(new_ranges, transformations)
-
-        transformed_ranges.extend(new_ranges)
-        if non_overlap_range is not None and non_overlap_range[1] > 0:
-            transformed_ranges.append(non_overlap_range)
-
-    print(transformed_ranges)
-    return transformed_ranges
+    transformed_intervals = clean_intervals(transformed_intervals)
+    transformed_intervals = merge_intervals(transformed_intervals)
+    # print(curr_intervals)
+    # print([[m[0], m[1], m[1] + m[2] - 1, m[0] - m[1]] for m in sorted_mapping])
+    # print(transformed_intervals)
+    return transformed_intervals
 
 
 def solve_part2(file):
@@ -244,39 +267,32 @@ def solve_part2(file):
     items = parse_inputs(inputs)
 
     seeds = items["seeds"]
-    seed_ranges = []
+    seed_intervals = []
     for i in range(0, len(seeds), 2):
-        starting_seed, num_seeds = seeds[i], seeds[i + 1]
-        seed_ranges.append((starting_seed, num_seeds))
+        start, end = convert_start_length_to_interval(seeds[i], seeds[i + 1])
+        seed_intervals.append([start, end])
 
-    # print(seed_ranges)
-    print("current mapping: seed->soil")
-    soil_ranges = get_transformed_ranges(seed_ranges, items["seed-to-soil"])
-    print("current mapping: soil->fert")
-    fertilizer_ranges = get_transformed_ranges(soil_ranges, items["soil-to-fertilizer"])
-    print("current mapping: fert->water")
-    water_ranges = get_transformed_ranges(
-        fertilizer_ranges, items["fertilizer-to-water"]
-    )
-    print("current mapping: water->light")
-    light_ranges = get_transformed_ranges(water_ranges, items["water-to-light"])
-    print("current mapping: light->temp")
-    temperature_ranges = get_transformed_ranges(
-        light_ranges, items["light-to-temperature"]
-    )
-    print("current mapping: temp->humidity")
-    humidity_ranges = get_transformed_ranges(
-        temperature_ranges, items["temperature-to-humidity"]
-    )
-    print("current mapping: humidity->loc")
-    location_ranges = get_transformed_ranges(
-        humidity_ranges, items["humidity-to-location"]
-    )
+    mappings = [
+        "seed-to-soil",
+        "soil-to-fertilizer",
+        "fertilizer-to-water",
+        "water-to-light",
+        "light-to-temperature",
+        "temperature-to-humidity",
+        "humidity-to-location",
+    ]
 
-    print(location_ranges)
+    curr_intervals = sorted(seed_intervals, key=lambda x: x[0])
+    for mapping in mappings:
+        print()
+        print(f"current mapping: {mapping}")
+        curr_intervals = get_transformed_intervals(curr_intervals, items[mapping])
 
-    min_loc = min(location_ranges, key=lambda x: x[0])
-    print(min_loc)
+    print()
+    print("loc intervals")
+    print(sorted(curr_intervals, key=lambda x: x[0], reverse=True))
+    print("min_loc")
+    print(min(curr_intervals, key=lambda x: x[0]))
 
 
 if __name__ == "__main__":
