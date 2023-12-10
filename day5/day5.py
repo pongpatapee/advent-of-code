@@ -116,33 +116,24 @@ def get_overlap_range(src_start, src_end, dst_start, dst_end):
     # a--------b
     #   c---d
     if a <= c and d <= b:
-        return [
-            [c, d],
-            [a, c - 1],
-            [d + 1, b],
-        ]  # (c, d) = range in transformation, (a, c), (d, b) = range out of transformation
-        # return (c, d)
+        return (c, d)
 
     # a---b
     #   c---d
     elif a <= c and c <= b and b <= d:
-        return [[c, b], [a, c - 1]]  # same logic as above
-        # return (c, b)
+        return (c, b)
 
     #   a---b
     # c---d
     elif c <= a and a <= d and d <= b:
-        return [[a, d], [d + 1, b]]
-        # return (a, d)
+        return (a, d)
 
     #   a---b
     # c--------d
     elif c <= a and b <= d:
-        return [[a, b]]
-        # return (a, b)
+        return (a, b)
 
-    return [None, [a, b]]
-    # return None
+    return None
 
 
 def clean_intervals(intervals):
@@ -232,11 +223,8 @@ def get_transformed_intervals(curr_intervals, mappings):
             m_dst_start, m_src_start, m_length = m
             m_src_end = m_src_start + m_length - 1
 
-            overlap_res = get_overlap_range(
-                curr_start, curr_end, m_src_start, m_src_end
-            )
+            overlap = get_overlap_range(curr_start, curr_end, m_src_start, m_src_end)
 
-            overlap = overlap_res[0]
             if not overlap:
                 continue
 
@@ -244,15 +232,9 @@ def get_transformed_intervals(curr_intervals, mappings):
             transformations.append(m_dst_start - m_src_start)
 
         non_overlap = get_non_overlaps([curr_start, curr_end], overlaps)
-        # print(f"overlap {overlaps}, non_overlaps: {non_overlap}")
 
         transformed_intervals.extend(apply_transformations(overlaps, transformations))
         transformed_intervals.extend(non_overlap)
-        print()
-        print(f"current overlap {overlaps}")
-        print(f"current nonoverlap {non_overlap}")
-        pprint(transformed_intervals)
-        print()
 
     transformed_intervals = clean_intervals(transformed_intervals)
     transformed_intervals = merge_intervals(transformed_intervals)
@@ -284,13 +266,8 @@ def solve_part2(file):
 
     curr_intervals = sorted(seed_intervals, key=lambda x: x[0])
     for mapping in mappings:
-        print()
-        print(f"current mapping: {mapping}")
         curr_intervals = get_transformed_intervals(curr_intervals, items[mapping])
 
-    print()
-    print("loc intervals")
-    print(sorted(curr_intervals, key=lambda x: x[0], reverse=True))
     print("min_loc")
     print(min(curr_intervals, key=lambda x: x[0]))
 
