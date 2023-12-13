@@ -106,6 +106,8 @@ def bfs(S, matrix):
     print("largest num steps: ")
     print(largest_num_steps)
 
+    return visited
+
 
 def solve_part1(file):
     matrix = get_inputs(file)
@@ -113,42 +115,6 @@ def solve_part1(file):
     S = find_starting_pos(matrix)
 
     bfs(S, matrix)
-
-
-# just dfs, that returns a path
-def get_pipe_path(S, matrix):
-    path = []
-    visited = set()
-
-    def dfs(curr_node, coming_from, matrix, visited):
-        # if out of bounds return
-        r, c = curr_node
-        curr_pipe = matrix[r][c]
-
-        if (r < 0 or r >= len(matrix)) or (c < 0 or c >= len(matrix[0])):
-            return
-
-        if coming_from and (curr_pipe not in coming_from_map[coming_from]):
-            return
-
-        visited.add(curr_node)
-
-        if curr_pipe == "S":
-            curr_pipe = infer_starting_pipe(curr_node, matrix)
-
-        print(curr_pipe, curr_node)
-        path.append(curr_node)
-
-        for dir in next_valid_dir[curr_pipe]:
-            dir_r, dir_c = dirs_map[dir]
-            new_node = (r + dir_r, c + dir_c)
-            if new_node not in visited:
-                dfs(new_node, opposite_dir_map[dir], matrix, visited)
-
-    dfs(S, None, matrix, visited)
-
-    # print(path)
-    return path
 
 
 def replace_S_with_pipe(S, starting_pipe, matrix):
@@ -184,7 +150,7 @@ def solve_part2(file):
     modes = ["outside", "inside"]
     mode_ind = 0
 
-    pipes = get_pipe_path(S, matrix)
+    pipes = bfs(S, matrix)
 
     # horizontal scan
     for r in range(len(matrix)):
@@ -192,13 +158,13 @@ def solve_part2(file):
             curr_node = (r, c)
             curr_pipe = matrix[r][c]
 
-            if curr_pipe in vertical_pipes:
+            if (curr_pipe in vertical_pipes) and (curr_node in pipes):
                 mode_ind = (mode_ind + 1) % len(modes)
                 # print(f"encounered {curr_pipe}, switching mode to {modes[mode_ind]}")
                 continue
 
             if (curr_node not in pipes) and modes[mode_ind] == "inside":
-                print(curr_node)
+                # print(curr_node)
                 num_tiles_enclosed += 1
 
     print(num_tiles_enclosed)
