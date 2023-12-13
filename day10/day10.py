@@ -33,6 +33,8 @@ pipe_inference_map = {
     (False, True, True, False): "F",
 }
 
+vertical_pipes = {"|", "L" "J", "7", "F"}
+
 
 def get_inputs(file):
     with open(file) as f:
@@ -58,7 +60,7 @@ def infer_starting_pipe(S, matrix):
     for dir_letter, dir in dirs_map.items():
         r_dir, c_dir = dir
 
-        if (0 <= (r + r_dir) <= len(matrix)) and (0 <= (c + c_dir) <= len(matrix[0])):
+        if (0 <= (r + r_dir) < len(matrix)) and (0 <= (c + c_dir) < len(matrix[0])):
             surrounding_pipe = matrix[r + r_dir][c + c_dir]
             can_connect = (
                 surrounding_pipe in coming_from_map[opposite_dir_map[dir_letter]]
@@ -113,8 +115,97 @@ def solve_part1(file):
     bfs(S, matrix)
 
 
+# just dfs, that returns a path
+def get_pipe_path(S, matrix):
+    path = []
+    visited = set()
+
+    def dfs(curr_node, coming_from, matrix, visited):
+        # if out of bounds return
+        r, c = curr_node
+        curr_pipe = matrix[r][c]
+
+        if (r < 0 or r >= len(matrix)) or (c < 0 or c >= len(matrix[0])):
+            return
+
+        if coming_from and (curr_pipe not in coming_from_map[coming_from]):
+            return
+
+        visited.add(curr_node)
+
+        if curr_pipe == "S":
+            curr_pipe = infer_starting_pipe(curr_node, matrix)
+
+        print(curr_pipe, curr_node)
+        path.append(curr_node)
+
+        for dir in next_valid_dir[curr_pipe]:
+            dir_r, dir_c = dirs_map[dir]
+            new_node = (r + dir_r, c + dir_c)
+            if new_node not in visited:
+                dfs(new_node, opposite_dir_map[dir], matrix, visited)
+
+    dfs(S, None, matrix, visited)
+
+    # print(path)
+    return path
+
+
+def replace_S_with_pipe(S, starting_pipe, matrix):
+    temp_row = matrix[S[0]]
+
+    temp_row = [c for c in temp_row]
+    temp_row[S[1]] = starting_pipe
+
+    matrix[S[0]] = "".join(temp_row)
+
+    return matrix
+
+
+def solve_part2(file):
+    """
+    Solution is you have to horizontally scan the pipes, when encountering vertical pipes, you "switch modes"
+
+    i.e.
+    OOvIIIIvOO
+    ..F----7..
+    ..|....|..
+    ..|....|..
+    ..L----J..
+
+    """
+
+    matrix = get_inputs(file)
+    S = find_starting_pos(matrix)
+    starting_pipe = infer_starting_pipe(S, matrix)
+    matrix = replace_S_with_pipe(S, starting_pipe, matrix)
+
+    num_tiles_enclosed = 0
+    modes = ["outside", "inside"]
+    mode_ind = 0
+
+    pipes = get_pipe_path(S, matrix)
+
+    # horizontal scan
+    for r in range(len(matrix)):
+        for c in range(len(matrix[r])):
+            curr_node = (r, c)
+            curr_pipe = matrix[r][c]
+
+            if curr_pipe in vertical_pipes:
+                mode_ind = (mode_ind + 1) % len(modes)
+                # print(f"encounered {curr_pipe}, switching mode to {modes[mode_ind]}")
+                continue
+
+            if (curr_node not in pipes) and modes[mode_ind] == "inside":
+                print(curr_node)
+                num_tiles_enclosed += 1
+
+    print(num_tiles_enclosed)
+
+
 if __name__ == "__main__":
     import sys
 
-    solve_part1(sys.argv[1])
-    # solve_part2(sys.argv[1])
+    # solve_part1(sys.argv[1])
+    solve_part2(sys.argv[1])
