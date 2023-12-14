@@ -82,7 +82,7 @@ def get_galaxy_inds(image):
     for r in range(len(image)):
         for c in range(len(image[r])):
             if image[r][c] == "#":
-                galaxy_inds.append((r, c))
+                galaxy_inds.append([r, c])
 
     return galaxy_inds
 
@@ -117,6 +117,79 @@ def solve_part1(file):
     for pair in pairs:
         node1, node2 = pair
         distance = calc_distance(node1, node2)
+        print(node1, node2, distance)
+        total_distance += distance
+
+    print(total_distance)
+
+
+def expand_galaxy_from_inds(galaxy_inds, no_galaxy_rows, no_galaxy_cols, image):
+    # no_galaxy_rows and no_galaxy_cols are naturally sorted from how they are constructed
+
+    # -1 because we are replacing the empty space with the factor, not inserting
+    expand_factor = 1_000_000 - 1
+
+    no_row_ind = 0
+    no_galaxy_rows.append(len(image))  # avoid no_row_ind out of bounds
+
+    no_col_ind = 0
+    no_galaxy_cols.append(len(image[0]))  # avoid no_col_ind out of bounds
+    #
+    # print(galaxy_inds)
+    # print("before expansion")
+
+    # exapand rows
+    galaxy_inds.sort(key=lambda x: x[0])
+    for i, galaxy in enumerate(galaxy_inds):
+        r, c = galaxy
+
+        # if no_row_ind < len(no_galaxy_rows) and (r > no_galaxy_rows[no_row_ind]):
+        while r > no_galaxy_rows[no_row_ind]:
+            no_row_ind += 1
+
+        galaxy_inds[i] = [r + expand_factor * no_row_ind, c]
+
+    # exapnd cols
+    galaxy_inds.sort(key=lambda x: x[1])
+    for i, galaxy in enumerate(galaxy_inds):
+        r, c = galaxy
+
+        while c > no_galaxy_cols[no_col_ind]:
+            no_col_ind += 1
+
+        galaxy_inds[i] = [r, c + expand_factor * no_col_ind]
+
+    # print("after expansion")
+    # galaxy_inds.sort(key=lambda x: x[0])
+    # print(galaxy_inds)
+
+    return galaxy_inds
+
+
+def solve_part2(file):
+    inputs = get_inputs(file)
+    image = parse_inputs(inputs)
+
+    galaxy_inds = get_galaxy_inds(image)  # galaxy_inds of unexpand galaxy
+
+    no_galaxy_rows = get_no_galaxy_rows(image)
+    no_galaxy_cols = get_no_galaxy_cols(image)
+    # print("no_galaxy_rows")
+    # print(no_galaxy_rows)
+    # print("no_galaxy_cols")
+    # print(no_galaxy_cols)
+
+    galaxy_inds = expand_galaxy_from_inds(
+        galaxy_inds, no_galaxy_rows, no_galaxy_cols, image
+    )
+
+    pairs = generate_pairs(galaxy_inds)
+
+    total_distance = 0
+    for pair in pairs:
+        node1, node2 = pair
+        distance = calc_distance(node1, node2)
+        # print(node1, node2, distance)
         total_distance += distance
 
     print(total_distance)
@@ -125,18 +198,5 @@ def solve_part1(file):
 if __name__ == "__main__":
     import sys
 
-    solve_part1(sys.argv[1])
-    # solve_part2(sys.argv[1])
-
-    # length = 9
-    #
-    # total_length = 0
-    #
-    # for i in range(1, length + 1):
-    #     for j in range(i + 1, length + 1):
-    #         print(i, j)
-    #         total_length += 1
-    #
-    # print("total_length")
-    # print(total_length)
-    #
+    # solve_part1(sys.argv[1])
+    solve_part2(sys.argv[1])
