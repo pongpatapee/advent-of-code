@@ -96,17 +96,30 @@ def generate_pairs(galaxies):
     return pairs
 
 
+def calc_distance(node1, node2):
+    # min distance is the taxi-cab distance because its a grid
+    # since its just the L1 distance, the min distance = diffx + diffy
+
+    distance = abs(node1[0] - node2[0]) + abs(node1[1] - node2[1])
+
+    return distance
+
+
 def solve_part1(file):
     inputs = get_inputs(file)
     image = parse_inputs(inputs)
     image = expand_galaxy(image)
-    pprint(image)
 
     galaxy_inds = get_galaxy_inds(image)
     pairs = generate_pairs(galaxy_inds)
-    # print(galaxy_inds)
-    # print(len(pairs))
-    # print(pairs)
+
+    total_distance = 0
+    for pair in pairs:
+        node1, node2 = pair
+        distance = calc_distance(node1, node2)
+        total_distance += distance
+
+    print(total_distance)
 
 
 if __name__ == "__main__":
